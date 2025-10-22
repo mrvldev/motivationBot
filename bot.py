@@ -1,8 +1,14 @@
-import random
 import os
+import random
 import discord
+import asyncio
+import schedule
+import time
+
+from discord import app_commands
 from  dotenv import load_dotenv
 
+# motivational quotes
 quotes = [
     "Believe you can and you're halfway there. – Theodore Roosevelt",
     "Your limitation—it's only your imagination.",
@@ -57,32 +63,42 @@ quotes = [
     "Success doesn't just find you. You have to go out and get it.",
     ]
 
-#Load token number
+# load token
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
-#make a client
+# discord setup
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
+tree = app_commands.CommandTree(client)
 
-#Event: if bot goes online
+# ID of discord channel
+CHANNEL_ID = 1430417103932100661
+
+# when bot starts
 @client.event
 async def on_ready():
+    await tree.sync()
     print(f'We have logged in as {client.user}')
+    client.loop.create_task(daily_motivation_task())
 
-# when user interact with bot with !motivate
-@client.event
-async def on_message(message):
+# slash comman
+@tree.command(name="motivate", description="Get a random motivational quote")
+async def motivate(interaction: discord.Interaction):
+    quote = random.choice(quotes)
+    await interaction.response.send_message(quote)
 
-    print(f'Message from {message.author}: {message.content}')
-    if message.author == client.user:
-        return
+# background task
+async def daily_motivation_task():
+    await client.wait_until_ready()
+    channel = client.get_channel(CHANNEL_ID)
+    while not client.is_closed():
+        quote = random.choice(quotes)
+        if channel:
+            await channel.send(f"Daily Motivation: {quote}")
+        await asyncio.sleep(24 * 60 * 60) # wait for 24h 
 
-    if message.content.startswith('!motivate'):
-        response = random.choice(quotes)
-        await message.channel.send(response)
-        # await message.channel.send('Du kannst es schaffen!')
 
 # starting bot
 client.run(TOKEN)
